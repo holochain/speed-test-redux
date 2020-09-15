@@ -13,10 +13,15 @@ A dna to duplicate the speed-test used in RSM for benchmark comparison purposes.
 
 Assumes you are running inside `nix-shell` executed from [holochain-redux](https://github.com/holochain/holochain-rust)
 
+The test requires a running sim2h server:
 ``` shell
-cd test
-npm i
-npm run test:stress
+hc-sim2h-server -p 9002 --structured None
+
+```
+
+Run the test with:
+``` shell
+hc test
 ```
 
 ## License
