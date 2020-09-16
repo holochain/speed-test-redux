@@ -56,17 +56,14 @@ mod my_zome {
     }
 
     #[zome_fn("hc_public")]
-    fn create_my_entry(entry: MyEntry) -> ZomeApiResult<Address> {
-        let entry = Entry::App("my_entry".into(), entry.into());
-        let address = hdk::commit_entry(&entry)?;
-        let anchor_address = holochain_anchors::anchor("my_anchor_type".into(), "my_anchor".into())?;
-        hdk::link_entries(&anchor_address, &address, "my_link_type", "my_anchor")?;
-        Ok(address)
+    fn anchor(anchor_type: String, anchor_text: String) -> ZomeApiResult<Address> {
+        let anchor_address = holochain_anchors::anchor(anchor_type.clone(), anchor_text.clone())?;
+        Ok(anchor_address)
     }
 
     #[zome_fn("hc_public")]
-    fn get_my_entry(address: Address) -> ZomeApiResult<Option<Entry>> {
-        hdk::get_entry(&address)
+    fn list_anchor_addresses(anchor_type: String) -> ZomeApiResult<Vec<Address>> {
+        holochain_anchors::list_anchor_addresses(anchor_type)
     }
 
     #[entry_def]

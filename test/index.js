@@ -33,22 +33,73 @@ const config = Config.gen(
 
 // default middleware is local and tape
 const orchestrator = new Orchestrator()
+const MAX_ATTEMPTS = 100
 
-orchestrator.registerScenario("description of example test", async (s, t) => {
+const speed_test = async (s, t, num) => {
+  console.log(`Running speed test with ${num} iterations`)
 
   const {alice, bob} = await s.players({alice: config, bob: config}, true)
 
-  // Make a call to a Zome function
-  // indicating the function, and passing it an input
-  const addr = await alice.call("app", "main", "create_my_entry", {"entry" : {"content":"sample content"}})
+  console.time(`Consistency in for ${num} calls`)
+  for (var i = 0; i < num; i++) {
+    // call the zome function that makes the anchors
+    const alice_result = await alice.call("app", "main", "anchor", {
+      anchor_type: "alice", anchor_text: `${i}`
+    })
+    t.true(alice_result.Ok)
+    const bob_result = await bob.call("app", "main", "anchor", {
+      anchor_type: "bobbo", anchor_text: `${i}`
+    })
+    t.true(bob_result.Ok)
+  }
 
-  // Wait for all network activity to settle
-  await s.consistency()
+  var alice_done = false;
+  var bobbo_done = false;
+  var alice_attempts = 0;
+  var bobbo_attempts = 0;
+  while(1) {
+    if (!bobbo_done) {
+      bobbo_attempts += 1;
+      const result = await alice.call("app", "main", "list_anchor_addresses", {anchor_type: "bobbo"})
+      t.true(result.Ok)
+      bobbo_done = result.Ok.length == num
+    }
 
-  const result = await bob.call("app", "main", "get_my_entry", {"address": addr.Ok})
+    if (!alice_done) {
+      alice_attempts += 1;
+      const result = await bob.call("app", "main", "list_anchor_addresses", {anchor_type: "alice"})
+      t.true(result.Ok)
+      alice_done = result.Ok.length == num
+    }
 
-  // check for equality of the actual and expected results
-  t.deepEqual(result, { Ok: { App: [ 'my_entry', '{"content":"sample content"}' ] } })
+    if (alice_done && bobbo_done) {
+      console.timeEnd(`Consistency in for ${num} calls`)
+      console.log(
+`     Alice took ${alice_attempts} attempts to reach consistency
+      Bobbo took ${bobbo_attempts} attempts to reach consistency`);
+      break;
+    }
+  }
+}
+
+orchestrator.registerScenario("speed test 1", async (s, t) => {
+  await speed_test(s, t, 1)
+})
+
+orchestrator.registerScenario("speed test 10", async (s, t) => {
+  await speed_test(s, t, 10)
+})
+
+orchestrator.registerScenario("speed test 100", async (s, t) => {
+  await speed_test(s, t, 100)
+})
+
+orchestrator.registerScenario("speed test 1000", async (s, t) => {
+  await speed_test(s, t, 1000)
+})
+
+orchestrator.registerScenario("speed test 2000", async (s, t) => {
+  await speed_test(s, t, 2000)
 })
 
 orchestrator.run()
